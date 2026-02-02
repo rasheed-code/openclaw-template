@@ -81,11 +81,14 @@ RUN pnpm install --prod --frozen-lockfile && pnpm store prune
 COPY --from=openclaw-build /openclaw /openclaw
 
 # Provide a openclaw executable
-RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
+RUN printf '%s
+' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
   && chmod +x /usr/local/bin/openclaw
 
 COPY src ./src
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["node", "src/server.js"]
+COPY start.sh ./
+RUN chmod +x start.sh
+CMD ["./start.sh"]
