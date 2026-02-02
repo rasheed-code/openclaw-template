@@ -2,7 +2,7 @@
 FROM node:22-bookworm AS openclaw-build
 
 # Dependencies needed for openclaw build
-RUN apt-get update \
+RUN apt-get update && apt-get install -y su-exec && apt-get clean \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
@@ -42,7 +42,7 @@ RUN pnpm ui:install && pnpm ui:build
 FROM node:22-bookworm
 ENV NODE_ENV=production
 
-RUN apt-get update \
+RUN apt-get update && apt-get install -y su-exec && apt-get clean \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -91,4 +91,6 @@ ENV PORT=8080
 EXPOSE 8080
 COPY start.sh ./
 RUN chmod +x start.sh
-CMD ["./start.sh"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]
