@@ -215,7 +215,7 @@ async function startGateway() {
       "set",
       "--json",
       "channels.whatsapp",
-      JSON.stringify({ enabled: true }),
+      JSON.stringify({}),
     ]),
   );
   if (waResult.code === 0) {
@@ -797,7 +797,7 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
             "set",
             "--json",
             "channels.whatsapp",
-            JSON.stringify({ enabled: true }),
+            JSON.stringify({}),
           ]),
         );
         extra += `\n[whatsapp] enabled=${waSet.code === 0 ? 'yes' : 'failed'} (exit ${waSet.code})\n`;
@@ -990,8 +990,12 @@ server.on("upgrade", async (req, socket, head) => {
     return;
   }
 
-  // Inject auth token via headers option (req.headers modification doesn't work for WS)
-  console.log(`[ws-upgrade] Proxying WebSocket upgrade with token: ${OPENCLAW_GATEWAY_TOKEN.slice(0, 16)}...`);
+  // Inject auth token via query parameter AND headers.
+  // Browsers cannot set custom headers on WebSocket upgrades, and the gateway
+  // may only read the token from the URL query string (not HTTP headers).
+  const sep = req.url.includes("?") ? "&" : "?";
+  req.url = `${req.url}${sep}token=${OPENCLAW_GATEWAY_TOKEN}`;
+  console.log(`[ws-upgrade] Proxying WebSocket upgrade with token in query: ${OPENCLAW_GATEWAY_TOKEN.slice(0, 16)}...`);
 
   proxy.ws(req, socket, head, {
     target: GATEWAY_TARGET,
