@@ -188,6 +188,42 @@ async function startGateway() {
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
 
+  // Trust the local proxy so the gateway accepts Bearer tokens forwarded from the wrapper.
+  // Without this, the gateway sees X-Forwarded-* headers from 127.0.0.1 and rejects
+  // the connection as "untrusted proxy" → token_missing.
+  const tpResult = await runCmd(
+    OPENCLAW_NODE,
+    clawArgs([
+      "config",
+      "set",
+      "--json",
+      "gateway.trustedProxies",
+      JSON.stringify(["127.0.0.1", "::1"]),
+    ]),
+  );
+  if (tpResult.code === 0) {
+    console.log(`[gateway] ✓ trustedProxies set to ["127.0.0.1","::1"]`);
+  } else {
+    console.warn(`[gateway] ⚠️  failed to set trustedProxies: ${tpResult.output}`);
+  }
+
+  // Ensure WhatsApp channel is enabled (QR-code pairing via Control UI).
+  const waResult = await runCmd(
+    OPENCLAW_NODE,
+    clawArgs([
+      "config",
+      "set",
+      "--json",
+      "channels.whatsapp",
+      JSON.stringify({ enabled: true }),
+    ]),
+  );
+  if (waResult.code === 0) {
+    console.log(`[gateway] ✓ WhatsApp channel enabled`);
+  } else {
+    console.warn(`[gateway] ⚠️  failed to enable WhatsApp: ${waResult.output}`);
+  }
+
   const args = [
     "gateway",
     "run",
@@ -750,6 +786,21 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
           extra += `\n[slack config] exit=${set.code} (output ${set.output.length} chars)\n${set.output || "(no output)"}`;
           extra += `\n[slack verify] exit=${get.code} (output ${get.output.length} chars)\n${get.output || "(no output)"}`;
         }
+      }
+
+      // Enable WhatsApp channel (QR-code pairing, no token required at setup).
+      if (supports("whatsapp")) {
+        const waSet = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs([
+            "config",
+            "set",
+            "--json",
+            "channels.whatsapp",
+            JSON.stringify({ enabled: true }),
+          ]),
+        );
+        extra += `\n[whatsapp] enabled=${waSet.code === 0 ? 'yes' : 'failed'} (exit ${waSet.code})\n`;
       }
 
       // Apply changes immediately.
